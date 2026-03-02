@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>不動在庫削減AI | 橋本総業株式会社</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ローディング画面 -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">データを分析中...</div>
+</div>
+
+<div class="app-container">
+  <!-- ===== サイドバー ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <h1>橋本総業株式会社</h1>
+      <div class="logo-sub">
+        不動在庫削減システム
+        <span class="ai-badge">AI</span>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">メイン</div>
+      <div class="nav-item active" data-page="dashboard">
+        <span class="nav-icon">📊</span>
+        ダッシュボード
+      </div>
+      <div class="nav-item" data-page="branches">
+        <span class="nav-icon">🏢</span>
+        拠点別分析
+        <span class="nav-badge" id="branchAlertCount">-</span>
+      </div>
+      <div class="nav-item" data-page="deadstock">
+        <span class="nav-icon">📦</span>
+        不動在庫一覧
+      </div>
+
+      <div class="nav-section">分析</div>
+      <div class="nav-item" data-page="turnover">
+        <span class="nav-icon">🔄</span>
+        回転率分析
+      </div>
+      <div class="nav-item" data-page="rebate">
+        <span class="nav-icon">💰</span>
+        リベート管理
+      </div>
+      <div class="nav-item" data-page="ai">
+        <span class="nav-icon">🤖</span>
+        AI推奨アクション
+      </div>
+
+      <div class="nav-section">ツール</div>
+      <div class="nav-item" data-page="simulation">
+        <span class="nav-icon">🎯</span>
+        削減シミュレーション
+      </div>
+    </nav>
+  </aside>
+
+  <!-- ===== メインコンテンツ ===== -->
+  <main class="main-content">
+    <!-- トップバー -->
+    <header class="top-bar">
+      <div class="top-bar-left">
+        <h2 id="pageTitle">ダッシュボード</h2>
+        <span class="breadcrumb" id="breadcrumb"></span>
+      </div>
+      <div class="top-bar-right">
+        <div class="live-indicator">
+          <span class="live-dot"></span>
+          リアルタイム更新中
+        </div>
+        <div class="date-display">2026年3月2日 (月)</div>
+      </div>
+    </header>
+
+    <div class="page-content">
+
+      <!-- ========== ダッシュボード ========== -->
+      <div class="page active" id="page-dashboard">
+        <!-- KPIカード -->
+        <div class="kpi-grid" id="kpiGrid"></div>
+
+        <!-- チャート上段 -->
+        <div class="grid-2">
+          <div class="card animate-in delay-2">
+            <div class="card-header">
+              <h3>不動在庫推移（12ヶ月）</h3>
+              <span class="ai-tag">AI予測含む</span>
+            </div>
+            <div class="card-body">
+              <div class="chart-container">
+                <canvas id="chartTrend"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="card animate-in delay-3">
+            <div class="card-header">
+              <h3>カテゴリ別在庫構成</h3>
+            </div>
+            <div class="card-body">
+              <div class="chart-container">
+                <canvas id="chartCategory"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- チャート下段 -->
+        <div class="grid-2">
+          <div class="card animate-in delay-4">
+            <div class="card-header">
+              <h3>拠点別 不動在庫率 ワースト10</h3>
+            </div>
+            <div class="card-body">
+              <div class="chart-container">
+                <canvas id="chartWorst"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="card animate-in delay-5">
+            <div class="card-header">
+              <h3>回転率分布</h3>
+            </div>
+            <div class="card-body">
+              <div class="chart-container">
+                <canvas id="chartTurnover"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 直近AI推奨 -->
+        <div class="card animate-in delay-5">
+          <div class="card-header">
+            <h3>🤖 AIからの推奨アクション（本日）</h3>
+          </div>
+          <div class="card-body" id="dashboardAiActions"></div>
+        </div>
+      </div>
+
+      <!-- ========== 拠点別分析 ========== -->
+      <div class="page" id="page-branches">
+        <div class="card">
+          <div class="card-header">
+            <h3>全40拠点 一覧</h3>
+            <div class="filter-bar">
+              <select class="filter-select" id="branchRegionFilter">
+                <option value="">全地域</option>
+                <option value="北海道">北海道</option>
+                <option value="東北">東北</option>
+                <option value="関東">関東</option>
+                <option value="中部">中部</option>
+                <option value="関西">関西</option>
+                <option value="中国">中国</option>
+                <option value="四国">四国</option>
+                <option value="九州">九州</option>
+              </select>
+              <input type="text" class="search-input" placeholder="拠点名で検索..." id="branchSearch">
+            </div>
+          </div>
+          <div class="card-body no-padding">
+            <div class="table-container">
+              <table id="branchTable">
+                <thead>
+                  <tr>
+                    <th data-sort="name">拠点名 <span class="sort-icon">▼</span></th>
+                    <th data-sort="region">地域 <span class="sort-icon">▼</span></th>
+                    <th data-sort="totalItems">SKU数 <span class="sort-icon">▼</span></th>
+                    <th data-sort="totalValue">在庫金額 <span class="sort-icon">▼</span></th>
+                    <th data-sort="deadStockValue">不動在庫額 <span class="sort-icon">▼</span></th>
+                    <th data-sort="deadStockRate">不動在庫率 <span class="sort-icon">▼</span></th>
+                    <th data-sort="avgTurnoverRate">回転率 <span class="sort-icon">▼</span></th>
+                    <th data-sort="totalRebate">リベート <span class="sort-icon">▼</span></th>
+                    <th data-sort="score">AIスコア <span class="sort-icon">▼</span></th>
+                  </tr>
+                </thead>
+                <tbody id="branchTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== 不動在庫一覧 ========== -->
+      <div class="page" id="page-deadstock">
+        <div class="kpi-grid" id="deadstockKpi"></div>
+        <div class="card">
+          <div class="card-header">
+            <h3>不動在庫一覧（半年以上出荷なし）</h3>
+            <div class="filter-bar">
+              <select class="filter-select" id="deadstockBranchFilter">
+                <option value="">全拠点</option>
+              </select>
+              <select class="filter-select" id="deadstockCategoryFilter">
+                <option value="">全カテゴリ</option>
+              </select>
+              <select class="filter-select" id="deadstockRiskFilter">
+                <option value="">全リスク</option>
+                <option value="high">高リスク（1年以上）</option>
+                <option value="medium">中リスク（半年〜1年）</option>
+              </select>
+              <button class="btn btn-outline" id="deadstockExportBtn">📥 CSV出力</button>
+            </div>
+          </div>
+          <div class="card-body no-padding">
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>リスク</th>
+                    <th>拠点</th>
+                    <th>商品名</th>
+                    <th>カテゴリ</th>
+                    <th>数量</th>
+                    <th>在庫金額</th>
+                    <th>最終出荷日</th>
+                    <th>経過日数</th>
+                    <th>回転率</th>
+                    <th>AI推奨</th>
+                  </tr>
+                </thead>
+                <tbody id="deadstockTableBody"></tbody>
+              </table>
+            </div>
+            <div class="pagination" id="deadstockPagination"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== 回転率分析 ========== -->
+      <div class="page" id="page-turnover">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <h3>カテゴリ別 平均回転率</h3>
+            </div>
+            <div class="card-body">
+              <div class="chart-container chart-lg">
+                <canvas id="chartTurnoverCategory"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <h3>拠点別 平均回転率</h3>
+            </div>
+            <div class="card-body">
+              <div class="chart-container chart-lg">
+                <canvas id="chartTurnoverBranch"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <h3>回転率ヒートマップ（拠点 × カテゴリ）</h3>
+          </div>
+          <div class="card-body">
+            <div class="table-container">
+              <table id="turnoverHeatmap">
+                <thead id="turnoverHeatmapHead"></thead>
+                <tbody id="turnoverHeatmapBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== リベート管理 ========== -->
+      <div class="page" id="page-rebate">
+        <div class="kpi-grid" id="rebateKpi"></div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <h3>カテゴリ別リベート</h3>
+            </div>
+            <div class="card-body">
+              <div class="chart-container">
+                <canvas id="chartRebateCategory"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <h3>拠点別リベート（上位15）</h3>
+            </div>
+            <div class="card-body">
+              <div class="chart-container">
+                <canvas id="chartRebateBranch"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <h3>不動在庫のリベート影響分析</h3>
+            <span class="ai-tag">AI分析</span>
+          </div>
+          <div class="card-body" id="rebateAnalysis"></div>
+        </div>
+      </div>
+
+      <!-- ========== AI推奨アクション ========== -->
+      <div class="page" id="page-ai">
+        <div class="ai-card" style="margin-bottom:24px;">
+          <div class="ai-card-header">
+            <span>🤖</span> AI分析サマリー
+          </div>
+          <p id="aiSummaryText"></p>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <h3>優先度別アクション</h3>
+            </div>
+            <div class="card-body" id="aiPriorityActions"></div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <h3>拠点間移管推奨</h3>
+            </div>
+            <div class="card-body" id="aiTransferRecommendations"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3>カテゴリ別AI分析</h3>
+          </div>
+          <div class="card-body" id="aiCategoryAnalysis"></div>
+        </div>
+      </div>
+
+      <!-- ========== 削減シミュレーション ========== -->
+      <div class="page" id="page-simulation">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <h3>🎯 削減シミュレーション</h3>
+            </div>
+            <div class="card-body">
+              <div class="sim-slider-group">
+                <div class="sim-slider-label">
+                  <span>拠点間移管率</span>
+                  <span id="simTransferVal">20%</span>
+                </div>
+                <input type="range" class="sim-slider" id="simTransfer" min="0" max="50" value="20">
+              </div>
+              <div class="sim-slider-group">
+                <div class="sim-slider-label">
+                  <span>値下げ販売率</span>
+                  <span id="simDiscountVal">15%</span>
+                </div>
+                <input type="range" class="sim-slider" id="simDiscount" min="0" max="40" value="15">
+              </div>
+              <div class="sim-slider-group">
+                <div class="sim-slider-label">
+                  <span>仕入先返品率</span>
+                  <span id="simReturnVal">10%</span>
+                </div>
+                <input type="range" class="sim-slider" id="simReturn" min="0" max="30" value="10">
+              </div>
+              <div class="sim-slider-group">
+                <div class="sim-slider-label">
+                  <span>発注最適化による抑制率</span>
+                  <span id="simOptimizeVal">25%</span>
+                </div>
+                <input type="range" class="sim-slider" id="simOptimize" min="0" max="50" value="25">
+              </div>
+
+              <div class="sim-result" style="margin-top:24px;">
+                <div class="sim-result-label">推定年間削減金額</div>
+                <div class="sim-result-value" id="simResultValue">-</div>
+                <div class="sim-result-label" style="margin-top:12px;">不動在庫率 改善見込み</div>
+                <div style="font-size:24px;font-weight:800;color:var(--primary-light);" id="simResultRate">-</div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <h3>削減効果シミュレーション</h3>
+            </div>
+            <div class="card-body">
+              <div class="chart-container chart-lg">
+                <canvas id="chartSimulation"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3>拠点別 削減シミュレーション結果</h3>
+          </div>
+          <div class="card-body no-padding">
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>拠点</th>
+                    <th>現在の不動在庫</th>
+                    <th>移管による削減</th>
+                    <th>値下げによる削減</th>
+                    <th>返品による削減</th>
+                    <th>発注最適化</th>
+                    <th>削減後不動在庫</th>
+                    <th>削減率</th>
+                  </tr>
+                </thead>
+                <tbody id="simBranchTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- ===== 拠点詳細モーダル ===== -->
+<div class="modal-overlay" id="branchModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="branchModalTitle">拠点詳細</h3>
+      <button class="modal-close" onclick="closeBranchModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="branchModalBody"></div>
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
